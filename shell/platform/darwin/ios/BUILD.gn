@@ -35,6 +35,14 @@ _flutter_framework_headers = [
   "framework/Headers/FlutterViewController.h",
 ]
 
+#if defined(UC_BUILD_STARTUP_OPTIMIZE_IOS_WARM_UP)
+if (uc_build_startup_optimize_ios_warm_up) {
+  _flutter_framework_headers += [
+    "//flutter/uc/shell/platform/darwin/ios/framework/Headers/FlutterAccelerator.h",
+  ]
+}
+#endif
+
 _flutter_framework_headers_copy_dir = "$_flutter_framework_dir/Headers"
 
 shared_library("create_flutter_framework_dylib") {
