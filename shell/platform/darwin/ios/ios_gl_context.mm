@@ -10,9 +10,32 @@
 #include "third_party/skia/include/gpu/GrContextOptions.h"
 #include "third_party/skia/include/gpu/gl/GrGLInterface.h"
 
+#if defined(UC_BUILD_STARTUP_OPTIMIZE_IOS_WARM_UP)
+#include "flutter/uc/shell/platform/darwin/ios/ios_context_accelerator_gl.h"
+#endif
+
 namespace flutter {
 
 IOSGLContext::IOSGLContext() {
+#if defined(UC_BUILD_STARTUP_OPTIMIZE_IOS_WARM_UP)
+  fml::scoped_nsobject<EAGLContext> context;
+  fml::scoped_nsobject<EAGLContext> resource_context;
+  std::tie(resource_context, context) = flutter::uc::IOSGLContextAccelerator::ConsumeContext();
+  if (context == nullptr || resource_context == nullptr) {
+    resource_context_.reset([[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES3]);
+    if (resource_context_ != nullptr) {
+      context_.reset([[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES3
+                                          sharegroup:resource_context_.get().sharegroup]);
+    } else {
+      resource_context_.reset([[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2]);
+      context_.reset([[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2
+                                          sharegroup:resource_context_.get().sharegroup]);
+    }
+  } else {
+    context_.reset([context.get() retain]);
+    resource_context_.reset([resource_context.get() retain]);
+  }
+#else
   resource_context_.reset([[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES3]);
   if (resource_context_ != nullptr) {
     context_.reset([[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES3
@@ -22,7 +45,7 @@ IOSGLContext::IOSGLContext() {
     context_.reset([[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2
                                          sharegroup:resource_context_.get().sharegroup]);
   }
-
+#endif
   // TODO:
   // iOS displays are more variable than just P3 or sRGB.  Reading the display
   // gamut just tells us what color space it makes sense to render into.  We
